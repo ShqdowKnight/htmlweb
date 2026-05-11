@@ -1,0 +1,2432 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PlantLab — Interactief Leersysteem</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0f0a;
+  --surface: #111811;
+  --surface2: #182018;
+  --border: #2a3a2a;
+  --green: #4ade80;
+  --green-dim: #22c55e55;
+  --green-bright: #86efac;
+  --amber: #fbbf24;
+  --red: #f87171;
+  --blue: #60a5fa;
+  --purple: #c084fc;
+  --text: #e2f0e2;
+  --text-dim: #7a9a7a;
+  --text-muted: #4a6a4a;
+  --radius: 12px;
+  --glow: 0 0 30px #4ade8022;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ═══ NOISE OVERLAY ═══ */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.4;
+}
+
+/* ═══ SCREEN SYSTEM ═══ */
+.screen { display: none; }
+.screen.active { display: block; }
+
+/* ═══ HOME SCREEN ═══ */
+#home {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  position: relative;
+}
+
+.bg-grid {
+  position: fixed;
+  inset: 0;
+  background-image: 
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 60px 60px;
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+.home-logo {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(48px, 8vw, 96px);
+  font-weight: 800;
+  color: var(--green);
+  letter-spacing: -3px;
+  text-shadow: 0 0 60px #4ade8055;
+  animation: pulse-glow 3s ease-in-out infinite;
+  margin-bottom: 8px;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { text-shadow: 0 0 40px #4ade8044; }
+  50% { text-shadow: 0 0 80px #4ade8088, 0 0 120px #4ade8033; }
+}
+
+.home-sub {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: var(--text-dim);
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  margin-bottom: 60px;
+}
+
+.progress-overview {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px 32px;
+  margin-bottom: 40px;
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.xp-ring {
+  width: 80px;
+  height: 80px;
+  flex-shrink: 0;
+}
+
+.xp-label {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 28px;
+  color: var(--green);
+}
+
+.xp-sub {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.progress-bar-wrap {
+  flex: 1;
+}
+
+.progress-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+  font-family: 'Space Mono', monospace;
+}
+
+.progress-bar {
+  height: 8px;
+  background: var(--surface2);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--green), var(--green-bright));
+  border-radius: 4px;
+  transition: width 0.6s cubic-bezier(.34,1.56,.64,1);
+}
+
+.modules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+  width: 100%;
+  max-width: 900px;
+}
+
+.module-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+}
+
+.module-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 60%, var(--module-color, #4ade8011));
+  pointer-events: none;
+}
+
+.module-card:hover {
+  border-color: var(--module-color, var(--green));
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px var(--module-color, #4ade8022);
+}
+
+.module-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+}
+
+.module-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+
+.module-desc {
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.module-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.module-progress {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.module-stars {
+  display: flex;
+  gap: 3px;
+}
+
+.star {
+  font-size: 14px;
+  opacity: 0.3;
+  transition: opacity 0.2s;
+}
+
+.star.earned { opacity: 1; }
+
+.badge-locked {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  font-size: 18px;
+  opacity: 0.4;
+}
+
+/* ═══ QUIZ SCREEN ═══ */
+#quiz {
+  min-height: 100vh;
+  padding: 20px;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.quiz-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 32px;
+  padding-top: 20px;
+}
+
+.back-btn {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.back-btn:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.quiz-module-title {
+  font-family: 'Syne', sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  flex: 1;
+}
+
+.quiz-streak {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: var(--amber);
+  background: #fbbf2411;
+  border: 1px solid #fbbf2433;
+  padding: 6px 12px;
+  border-radius: 6px;
+}
+
+.question-counter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.q-num {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.q-xp {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: var(--green);
+}
+
+.progress-dots {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  transition: all 0.3s;
+}
+
+.dot.current { background: var(--green); border-color: var(--green); }
+.dot.correct { background: var(--green); border-color: var(--green); }
+.dot.wrong { background: var(--red); border-color: var(--red); }
+
+.question-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.question-type-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.from-db-badge {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  font-family: 'Space Mono', monospace;
+  font-size: 10px;
+  background: #c084fc22;
+  color: var(--purple);
+  border: 1px solid #c084fc44;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 1px;
+}
+
+.question-text {
+  font-family: 'Syne', sans-serif;
+  font-size: clamp(16px, 2.5vw, 22px);
+  font-weight: 600;
+  line-height: 1.4;
+  margin-bottom: 8px;
+  padding-right: 80px;
+}
+
+.question-context {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-bottom: 24px;
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* Multiple choice */
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 500px) {
+  .options-grid { grid-template-columns: 1fr; }
+}
+
+.option-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 20px;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  transition: all 0.15s;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.option-letter {
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+  transition: all 0.15s;
+}
+
+.option-btn:hover:not(:disabled) {
+  border-color: var(--green);
+  background: var(--green-dim);
+}
+
+.option-btn:hover:not(:disabled) .option-letter {
+  background: var(--green);
+  color: var(--bg);
+  border-color: var(--green);
+}
+
+.option-btn.correct {
+  border-color: var(--green);
+  background: #4ade8022;
+}
+
+.option-btn.correct .option-letter {
+  background: var(--green);
+  color: var(--bg);
+  border-color: var(--green);
+}
+
+.option-btn.wrong {
+  border-color: var(--red);
+  background: #f8717122;
+}
+
+.option-btn.wrong .option-letter {
+  background: var(--red);
+  color: #fff;
+  border-color: var(--red);
+}
+
+/* Text input */
+.text-input-wrap {
+  position: relative;
+}
+
+.text-input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 120px 16px 20px;
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 16px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.text-input:focus { border-color: var(--green); }
+
+.text-submit {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--green);
+  color: var(--bg);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 20px;
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.text-submit:hover { opacity: 0.85; }
+
+/* Drag & drop */
+.drag-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.drop-targets {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.drop-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+
+.drop-label {
+  font-size: 14px;
+  font-weight: 500;
+  flex: 1;
+  color: var(--text-dim);
+}
+
+.drop-zone {
+  min-width: 160px;
+  min-height: 36px;
+  border: 2px dashed var(--border);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--text-muted);
+  transition: all 0.2s;
+  padding: 6px 12px;
+}
+
+.drop-zone.over {
+  border-color: var(--green);
+  background: var(--green-dim);
+  color: var(--green);
+}
+
+.drop-zone.filled {
+  border-color: var(--green);
+  background: #4ade8011;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.drag-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 44px;
+  padding: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.drag-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: grab;
+  transition: all 0.15s;
+  user-select: none;
+}
+
+.drag-item:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.drag-item.dragging {
+  opacity: 0.4;
+}
+
+/* Feedback */
+.feedback-box {
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-top: 20px;
+  display: none;
+  animation: slide-up 0.3s ease;
+}
+
+@keyframes slide-up {
+  from { transform: translateY(10px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.feedback-box.correct {
+  background: #4ade8011;
+  border: 1px solid #4ade8044;
+}
+
+.feedback-box.wrong {
+  background: #f8717111;
+  border: 1px solid #f8717144;
+}
+
+.feedback-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.feedback-box.correct .feedback-title { color: var(--green); }
+.feedback-box.wrong .feedback-title { color: var(--red); }
+
+.feedback-text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.feedback-text strong { color: var(--green); }
+
+.continue-btn {
+  margin-top: 16px;
+  background: var(--green);
+  color: var(--bg);
+  border: none;
+  border-radius: 8px;
+  padding: 12px 28px;
+  font-family: 'Syne', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.continue-btn:hover { opacity: 0.85; }
+
+/* ═══ SVG LABELING ═══ */
+.label-container {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+
+.label-svg {
+  width: 100%;
+  max-height: 320px;
+  border-radius: 10px;
+  background: #0d160d;
+}
+
+.label-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.label-chip {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-family: 'Space Mono', monospace;
+  cursor: pointer;
+  transition: all 0.15s;
+  user-select: none;
+}
+
+.label-chip:hover { border-color: var(--green); color: var(--green); }
+.label-chip.selected { border-color: var(--green); background: var(--green-dim); color: var(--green); }
+.label-chip.used { opacity: 0.35; pointer-events: none; }
+
+.label-target {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Space Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  transform: translate(-50%, -50%);
+}
+
+.label-target.filled {
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--bg);
+}
+
+.label-target.wrong-fill {
+  background: var(--red);
+  border-color: var(--red);
+  color: #fff;
+}
+
+/* ═══ FEEDBACKLOOP SCREEN ═══ */
+.fl-diagram {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+/* ═══ RESULTS SCREEN ═══ */
+#results {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.results-score {
+  font-family: 'Syne', sans-serif;
+  font-size: 80px;
+  font-weight: 800;
+  color: var(--green);
+  line-height: 1;
+  margin-bottom: 8px;
+  text-shadow: 0 0 60px #4ade8055;
+}
+
+.results-label {
+  font-family: 'Space Mono', monospace;
+  font-size: 12px;
+  color: var(--text-dim);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 40px;
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  max-width: 480px;
+  margin-bottom: 40px;
+}
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.stat-num {
+  font-family: 'Syne', sans-serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--green);
+}
+
+.stat-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-family: 'Space Mono', monospace;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+
+.results-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.btn-primary {
+  background: var(--green);
+  color: var(--bg);
+  border: none;
+  border-radius: 10px;
+  padding: 14px 28px;
+  font-family: 'Syne', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.btn-primary:hover { opacity: 0.85; }
+
+.btn-secondary {
+  background: none;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 28px;
+  font-family: 'Syne', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-secondary:hover {
+  border-color: var(--green);
+  color: var(--green);
+}
+
+/* ═══ ANIMATIONS ═══ */
+@keyframes correct-pop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+.pop { animation: correct-pop 0.3s ease; }
+
+/* ═══ TOOLTIP ═══ */
+.tooltip {
+  position: fixed;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text);
+  pointer-events: none;
+  z-index: 10000;
+  max-width: 220px;
+  box-shadow: 0 4px 20px #0008;
+}
+
+/* ═══ CONFETTI ═══ */
+.confetti-piece {
+  position: fixed;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  pointer-events: none;
+  animation: confetti-fall var(--dur, 1.5s) var(--delay, 0s) ease-in forwards;
+  z-index: 9998;
+}
+
+@keyframes confetti-fall {
+  0% { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(120vh) rotate(720deg); opacity: 0; }
+}
+
+/* ═══ PULSE CORRECT ═══ */
+@keyframes pulse-correct {
+  0% { box-shadow: 0 0 0 0 #4ade8055; }
+  100% { box-shadow: 0 0 0 20px transparent; }
+}
+
+.pulse { animation: pulse-correct 0.5s ease; }
+
+/* Responsive */
+@media (max-width: 600px) {
+  .results-grid { grid-template-columns: repeat(3, 1fr); }
+  .question-card { padding: 20px; }
+  .question-text { padding-right: 40px; }
+}
+</style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+
+<!-- ═══════════════ HOME ═══════════════ -->
+<div id="home" class="screen active">
+  <div class="home-logo">PlantLab</div>
+  <div class="home-sub">Geavanceerd leersysteem · Plantenweefsels & Homeostase</div>
+
+  <div class="progress-overview">
+    <svg class="xp-ring" viewBox="0 0 80 80">
+      <circle cx="40" cy="40" r="34" fill="none" stroke="#2a3a2a" stroke-width="8"/>
+      <circle cx="40" cy="40" r="34" fill="none" stroke="#4ade80" stroke-width="8"
+        stroke-dasharray="213.6" id="xp-ring-fill" stroke-dashoffset="213.6"
+        stroke-linecap="round" transform="rotate(-90 40 40)" style="transition:stroke-dashoffset 1s ease"/>
+      <text x="40" y="45" text-anchor="middle" fill="#4ade80" font-family="Syne,sans-serif" font-size="16" font-weight="800" id="xp-ring-text">0</text>
+    </svg>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-label">
+        <span>Totale voortgang</span>
+        <span id="home-progress-pct">0%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="home-progress-bar" style="width:0%"></div></div>
+      <div style="margin-top:12px; font-size:13px; color:var(--text-dim);">
+        <span id="home-mastered">0</span> succescriteria beheerst van <span id="home-total">0</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="modules-grid" id="modules-grid"></div>
+</div>
+
+<!-- ═══════════════ QUIZ ═══════════════ -->
+<div id="quiz" class="screen">
+  <div class="quiz-header">
+    <button class="back-btn" onclick="goHome()">← Terug</button>
+    <div class="quiz-module-title" id="quiz-title"></div>
+    <div class="quiz-streak" id="quiz-streak">🔥 0</div>
+  </div>
+
+  <div class="question-counter">
+    <span class="q-num" id="q-counter">Vraag 1 / 10</span>
+    <span class="q-xp" id="q-xp">+10 XP</span>
+  </div>
+
+  <div class="progress-dots" id="progress-dots"></div>
+
+  <div class="question-card" id="question-card">
+    <span class="question-type-badge" id="q-type-badge"></span>
+    <span class="from-db-badge" id="q-db-badge" style="display:none">⚗ Kennisbasis</span>
+    <div class="question-text" id="question-text"></div>
+    <div class="question-context" id="question-context" style="display:none"></div>
+    <div id="question-body"></div>
+  </div>
+
+  <div class="feedback-box" id="feedback-box">
+    <div class="feedback-title" id="feedback-title"></div>
+    <div class="feedback-text" id="feedback-text"></div>
+    <button class="continue-btn" id="continue-btn" onclick="nextQuestion()">Volgende →</button>
+  </div>
+</div>
+
+<!-- ═══════════════ RESULTS ═══════════════ -->
+<div id="results" class="screen">
+  <div class="results-score" id="results-score">0%</div>
+  <div class="results-label" id="results-module-name">Module voltooid</div>
+
+  <div class="results-grid">
+    <div class="stat-card">
+      <div class="stat-num" id="res-correct">0</div>
+      <div class="stat-label">Correct</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="res-wrong">0</div>
+      <div class="stat-label">Fout</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num" id="res-xp">0</div>
+      <div class="stat-label">XP gewonnen</div>
+    </div>
+  </div>
+
+  <div id="results-feedback" style="max-width:560px; text-align:left; margin-bottom:32px; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:24px;">
+    <div style="font-family:'Syne',sans-serif; font-weight:700; margin-bottom:12px;">Wat herhalen?</div>
+    <div id="weak-areas" style="font-size:14px; color:var(--text-dim); line-height:1.8;"></div>
+  </div>
+
+  <div class="results-actions">
+    <button class="btn-primary" onclick="retryWeak()">Fouten herhalen</button>
+    <button class="btn-secondary" onclick="goHome()">Terug naar modules</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// DATA & STATE
+// ═══════════════════════════════════════════════════════
+
+const state = {
+  xp: 0,
+  moduleProgress: {},
+  currentModule: null,
+  currentQuestions: [],
+  currentIdx: 0,
+  streak: 0,
+  sessionCorrect: 0,
+  sessionWrong: 0,
+  sessionXP: 0,
+  wrongQuestions: [],
+  dots: [],
+  pendingAnswer: null,
+};
+
+// ═══════════════════════════════════════════════════════
+// MODULES DEFINITION
+// ═══════════════════════════════════════════════════════
+
+const MODULES = [
+  {
+    id: 'prikkels',
+    title: 'Prikkels & Receptoren',
+    icon: '⚡',
+    color: '#fbbf24',
+    desc: 'Van prikkel tot reactie · Receptoren · Conductoren · Effectoren',
+    criteria: ['6.24', '6.27'],
+  },
+  {
+    id: 'weefsels',
+    title: 'Plantenweefsels',
+    icon: '🔬',
+    color: '#60a5fa',
+    desc: '4 weefseltypes · Functies · Celtypes · Meristeemweefsel',
+    criteria: ['8.1.2-weefsels'],
+  },
+  {
+    id: 'vaatbundels',
+    title: 'Vaatbundels & Transport',
+    icon: '🌿',
+    color: '#4ade80',
+    desc: 'Xyleem · Floëem · Herkennen in doorsnedes · Sapstromen',
+    criteria: ['8.1.2-transport', '8.2.1'],
+  },
+  {
+    id: 'bladdoorsnede',
+    title: 'Doorsnede van het Blad',
+    icon: '🍃',
+    color: '#34d399',
+    desc: 'Cuticula · Epidermis · Pallisade/sponsparenchym · Huidmondjes labelen',
+    criteria: ['8.1.2-blad'],
+  },
+  {
+    id: 'waterhuishouding',
+    title: 'Waterhuishouding',
+    icon: '💧',
+    color: '#38bdf8',
+    desc: 'Homeostase · Feedbackloop · Huidmondjes · Drukverschil · Turgordruk',
+    criteria: ['8.1.2-water', '8.2.1'],
+  },
+  {
+    id: 'terminologie',
+    title: 'Vakterminologie',
+    icon: '📚',
+    color: '#c084fc',
+    desc: 'Alle vaktermen correct gebruiken · Definities · Toepassingen',
+    criteria: ['13.3'],
+  },
+];
+
+// ═══════════════════════════════════════════════════════
+// QUESTIONS DATABASE
+// ═══════════════════════════════════════════════════════
+// [fromDB: true] = uit eigen kennisbasis, niet uit info.txt
+
+const QUESTIONS = {
+
+prikkels: [
+  {
+    type: 'mc',
+    q: 'Wat is de correcte volgorde van prikkel tot reactie bij planten?',
+    options: [
+      'Prikkel → Receptor → Conductor → Effector → Reactie',
+      'Receptor → Prikkel → Effector → Conductor → Reactie',
+      'Prikkel → Conductor → Receptor → Reactie → Effector',
+      'Effector → Prikkel → Conductor → Receptor → Reactie',
+    ],
+    correct: 0,
+    feedback: 'De weg van prikkel tot reactie verloopt altijd via <strong>receptor → conductor → effector</strong>. De receptor neemt de prikkel waar, de conductor (bij planten: hormonen) transporteert de informatie, en de effector voert de reactie uit.',
+  },
+  {
+    type: 'mc',
+    q: 'Welke receptor neemt lichtprikkels waar in een plant?',
+    options: [
+      'Amyloplasten',
+      'Statolieten',
+      'Fotoreceptoren (chlorofyl)',
+      'Thermoreceptoren',
+    ],
+    correct: 2,
+    feedback: 'Fotoreceptoren zoals <strong>chlorofyl (bladgroen)</strong> registreren lichtprikkels. Ze zijn het meest geconcentreerd in de bladeren. Amyloplasten en statolieten registreren zwaartekracht, niet licht.',
+  },
+  {
+    type: 'mc',
+    q: 'Welke organellen in worteltopwortels fungeren als zwaartekrachtreceptoren?',
+    options: [
+      'Mitochondriën',
+      'Statolieten (amyloplasten met zetmeel)',
+      'Ribosomen',
+      'Bladgroenkorrels',
+    ],
+    correct: 1,
+    feedback: '<strong>Statolieten</strong> zijn grote amyloplasten vol zetmeel die door de zwaartekracht zakken naar de bodem van de cel. Ze bevinden zich in de worteltop en signaleren zo de richting van de zwaartekracht.',
+  },
+  {
+    type: 'mc',
+    q: 'Via welk mechanisme worden prikkels bij planten meestal doorgegeven (conductoren)?',
+    options: [
+      'Elektrische signalen via zenuwcellen',
+      'Hormonen via bastvaten en cel-tot-cel transport',
+      'Osmose via de worteldruk',
+      'Capillaire werking in de houtvaten',
+    ],
+    correct: 1,
+    feedback: 'Bij planten verloopt informatieoverdracht hoofdzakelijk via <strong>hormonen</strong> (zoals auxine en ethyleen) die door de bastvaten en cel-tot-cel transporteren. Elektrische signalen komen ook voor, maar enkel bij snelle reacties zoals thigmonastie.',
+  },
+  {
+    type: 'text',
+    q: 'Wat is homeostase? Geef een definitie in eigen woorden.',
+    keywords: ['inwendig evenwicht', 'stabiel', 'milieu', 'evenwicht', 'constant'],
+    ideal: 'Homeostase is het handhaven van een stabiel inwendig milieu ondanks wisselende externe omstandigheden.',
+    feedback: '<strong>Homeostase</strong> is het vermogen van een organisme om een stabiel intern milieu te handhaven, ondanks veranderingen in de omgeving. Bij planten regelen o.a. de huidmondjes het water- en CO₂-gehalte om homeostase te bereiken.',
+    fromDB: true,
+  },
+  {
+    type: 'mc',
+    q: 'Auxine is een hormoon dat groeirichting stuurt. Hoe werkt auxine bij fototropie (groei naar licht)?',
+    options: [
+      'Auxine concentreert zich aan de lichtzijde → die zijde groeit sneller',
+      'Auxine verplaatst zich naar de schaduwzijde → die cellen strekken zich → plant groeit naar licht',
+      'Auxine blokkeert groei aan de schaduwzijde volledig',
+      'Auxine stimuleert fotosynthese aan de lichtzijde',
+    ],
+    correct: 1,
+    feedback: 'Auxine verplaatst zich naar de <strong>schaduwzijde</strong> van de stengel. Daar veroorzaakt het <strong>celstrekking</strong>: die cellen worden langer. Daardoor buigt de stengel naar het licht toe (fototropie).',
+  },
+  {
+    type: 'mc',
+    q: 'Wat is het verschil tussen een tropie en een nastie?',
+    options: [
+      'Een tropie is snel en omkeerbaar, een nastie is traag en permanent',
+      'Een tropie is traag en permanent, een nastie is snel en tijdelijk omkeerbaar',
+      'Beide zijn permanent, maar tropieën zijn sneller',
+      'Een nastie vereist licht, een tropie niet',
+    ],
+    correct: 1,
+    feedback: '<strong>Tropie</strong> = trage, permanente reactie (bv. fototropie: groeirichting verandert definitief). <strong>Nastie</strong> = snelle, tijdelijke en omkeerbare reactie (bv. thigmonastie bij Kruidje-roer-me-niet).',
+  },
+  {
+    type: 'mc',
+    q: 'Watertekort bij een plant is een inwendige prikkel. Welke reactie volgt hierop?',
+    options: [
+      'De plant maakt meer auxine aan',
+      'De sluitcellen verliezen water → huidmondjes sluiten → minder transpiratie',
+      'De wortels stoppen met mineralen opnemen',
+      'De plant verhoogt de fotosynthesesnelheid',
+    ],
+    correct: 1,
+    feedback: 'Bij watertekort verliezen de <strong>sluitcellen</strong> water, waardoor de vacuole krimpt en het huidmondje sluit. Zo vermindert transpiratie en wateruitdroging. Dit is een voorbeeld van homeostase via een feedbackloop.',
+  },
+  {
+    type: 'mc',
+    q: 'Welke rol spelen receptoren in homeostase?',
+    options: [
+      'Ze produceren hormonen om de plant te laten groeien',
+      'Ze detecteren afwijkingen van het inwendig evenwicht en starten een correctie op',
+      'Ze transporteren water naar de bladeren',
+      'Ze zetten lichtenergie om in glucose',
+    ],
+    correct: 1,
+    feedback: 'Receptoren detecteren <strong>afwijkingen van het inwendig evenwicht</strong>. Ze meten bv. de concentratie water of CO₂ en sturen, via conductoren, de effectoren aan om bij te sturen. Zonder receptoren is homeostase onmogelijk.',
+  },
+  {
+    type: 'mc',
+    q: 'Ethyleen wordt ook wel het "verouderingshormoon" genoemd. Wat doet ethyleen NIET?',
+    options: [
+      'Vruchtrijping bevorderen',
+      'Bladval veroorzaken via een kurklaagje',
+      'Celstrekking veroorzaken voor groei naar licht',
+      'Bloemen doen verwelken bij hoge concentraties',
+    ],
+    correct: 2,
+    feedback: 'Celstrekking voor groei naar licht is de functie van <strong>auxine</strong>, niet ethyleen. Ethyleen is het verouderingshormoon: vruchtrijping, bladval, verwelking.',
+  },
+],
+
+weefsels: [
+  {
+    type: 'mc',
+    q: 'Welke 4 grote weefseltypes onderscheiden we bij planten?',
+    options: [
+      'Huidweefsel, grondweefsel, transportweefsel, meristeemweefsel',
+      'Epidermis, parenchym, floëem, xyleem',
+      'Dermis, vet, spier, zenuw',
+      'Cuticula, cambium, cortex, pericykel',
+    ],
+    correct: 0,
+    feedback: 'De 4 grote types zijn: <strong>huidweefsel</strong> (bescherming), <strong>grondweefsel</strong> (opvulling, opslag, fotosynthese), <strong>transportweefsel</strong> (xyleem + floëem) en <strong>meristeemweefsel</strong> (groei via stamcellen).',
+  },
+  {
+    type: 'drag',
+    q: 'Koppel elk weefseltype aan zijn voornaamste functie.',
+    pairs: [
+      { label: 'Huidweefsel (epidermis)', answer: 'Bescherming buitenkant' },
+      { label: 'Grondweefsel (parenchym)', answer: 'Opvulling, opslag, fotosynthese' },
+      { label: 'Transportweefsel', answer: 'Transport van water & suikers' },
+      { label: 'Meristeemweefsel', answer: 'Celdeling & groei (stamcellen)' },
+    ],
+    feedback: 'Perfect! Elk weefsel heeft een specifieke functie: huid → bescherming, grond → opvulling/opslag, transport → sapstromen, meristeem → groei.',
+  },
+  {
+    type: 'mc',
+    q: 'Wat is het verschil tussen pallisadeparenchym en sponsparenchym?',
+    options: [
+      'Pallisadeparenchym heeft holtes voor gasuitwisseling, sponsparenchym heeft bladgroenkorrels',
+      'Pallisadeparenchym heeft langwerpige cellen met veel bladgroenkorrels; sponsparenchym heeft losse cellen met holtes voor gasuitwisseling',
+      'Ze zijn identiek maar bevinden zich op andere plaatsen in de stengel',
+      'Pallisadeparenchym zorgt voor stevigheid, sponsparenchym voor transport',
+    ],
+    correct: 1,
+    feedback: '<strong>Pallisadeparenchym</strong>: langwerpige cellen, veel chloroplasten, maximale lichtopvang voor fotosynthese. <strong>Sponsparenchym</strong>: losse cellen met luchtkamers, zorgt voor gasuitwisseling (CO₂/O₂) en waterdamptransport.',
+  },
+  {
+    type: 'mc',
+    q: 'Wat is de functie van het waslaagje (cuticula) op de epidermis?',
+    options: [
+      'Fotosynthese uitvoeren',
+      'Water en mineralen opnemen',
+      'Waterafdamping beperken en beschermen tegen pathogenen',
+      'CO₂ uitwisselen met de lucht',
+    ],
+    correct: 2,
+    feedback: 'De <strong>cuticula</strong> is een waterafstotend waslaagje op de epidermis. Het beperkt ongecontroleerde verdamping (waterhuishouding!) en biedt bescherming. CO₂-uitwisseling gebeurt via de huidmondjes, niet de cuticula.',
+  },
+  {
+    type: 'mc',
+    q: 'Meristeemweefsel bevat stamcellen. Wat maakt meristeemcellen uniek?',
+    options: [
+      'Ze zijn altijd dood en bieden structurele steun',
+      'Ze zijn ongedifferentieerd en kunnen snel delen; één dochtercel krijgt een functie, de andere blijft meristeemcel',
+      'Ze transporteren suikers via de floëem',
+      'Ze slaan zetmeel op als reservevoedsel',
+    ],
+    correct: 1,
+    feedback: 'Meristeemcellen zijn <strong>ongedifferentieerd</strong> (stamcellen): ze hebben nog geen specifieke functie. Bij deling krijgt één cel een nieuwe functie (differentiatie), de andere blijft meristeemcel. Zo kan een plant blijven groeien.',
+  },
+  {
+    type: 'mc',
+    q: 'In een dwarsdoorsnede van een dicotyle stengel: waar liggen de vaatbundels?',
+    options: [
+      'Willekeurig verspreid over de doorsnede (zoals maïs)',
+      'In een kring aan de buitenkant van de stengel',
+      'Centraal in het midden van de stengel',
+      'Alleen in de epidermis',
+    ],
+    correct: 1,
+    feedback: 'Bij <strong>dicotylen</strong> (eik, roos, boterbloem...) liggen vaatbundels in een <strong>kring aan de buitenkant</strong>. Bij monocotylen (maïs, gras) zijn ze verspreid over de gehele stengel.',
+  },
+  {
+    type: 'mc',
+    q: 'Wat is sclerenchymweefsel?',
+    options: [
+      'Een levend transportweefsel met zeefvaten',
+      'Een sterk, grotendeels afgestorven weefsel met houtstof (lignine) in de celwand, vormt uiteindelijk hout',
+      'Een groeistimulerende laag meristeemcellen',
+      'Het buitenste huidweefsel met wortelharen',
+    ],
+    correct: 1,
+    feedback: '<strong>Sclerenchymcellen</strong> hebben lignine (houtstof) in hun celwand. Ze zijn het minst flexibel en sterven af — maar hun celwand blijft intact. Bij meerjarige planten vormt dit uiteindelijk hout. Collenchymcellen zijn levend en flexibel.',
+    fromDB: false,
+  },
+  {
+    type: 'mc',
+    q: 'Waar bevinden wortelharen zich, en welk weefsel vormt ze?',
+    options: [
+      'Op de epidermis van de stengel; gevormd door het parenchym',
+      'Op de rhizodermis (huidweefsel) van de wortel; uitgroeiingen van epidermiscellen',
+      'In de vaatbundel van het blad; gevormd door xyleem',
+      'Op de cuticula van het blad; gevormd door het meristeemweefsel',
+    ],
+    correct: 1,
+    feedback: 'Wortelharen zijn uitgroeiingen van de <strong>rhizodermis</strong> (huidweefsel van de wortel). Ze vergoten enorm de oppertalkte voor wateropname. De rhizodermis is het equivalent van de epidermis voor de wortel.',
+  },
+  {
+    type: 'mc',
+    q: 'Collenchymweefsel vs. parenchymweefsel: wat is het verschil in functie?',
+    options: [
+      'Collenchym zorgt voor fotosynthese; parenchym voor stevigheid',
+      'Collenchym geeft flexibele stevigheid (levend); parenchym vult aan, slaat op en zorgt voor fotosynthese',
+      'Ze zijn functioneel identiek, alleen de locatie verschilt',
+      'Collenchym transporteert water; parenchym transporteert suikers',
+    ],
+    correct: 1,
+    feedback: '<strong>Collenchym</strong>: levend, geeft buigzame stevigheid aan jonge plantendelen. <strong>Parenchym</strong>: multifunctioneel — opvulling, opslag van zetmeel, fotosynthese (in palisadecellen). Parenchym is het meest voorkomende weefsel.',
+  },
+  {
+    type: 'mc',
+    q: 'Wat is een vaatbundel?',
+    options: [
+      'Een groep meristeemcellen die voor groei zorgen',
+      'Een gestructureerde eenheid van xyleem en floëem die plantendelen verbindt',
+      'Een verdikking van de cuticula voor bescherming',
+      'Een cluster bladgroenkorrels in het pallisadeparenchym',
+    ],
+    correct: 1,
+    feedback: 'Een <strong>vaatbundel</strong> is een gestructureerde combinatie van <strong>xyleem + floëem</strong>, ingepakt met meristeem en sclerenchym. Vaatbundels lopen door alle plantendelen en zorgen voor het transportstelsel.',
+  },
+],
+
+vaatbundels: [
+  {
+    type: 'mc',
+    q: 'Wat transporteert xyleem (houtvaten) en in welke richting?',
+    options: [
+      'Suikers van bladeren naar wortels (neerwaarts)',
+      'Water en mineralen van wortels naar alle delen van de plant (opwaarts)',
+      'Hormonen in beide richtingen door de plant',
+      'Zuurstof van bladeren naar wortels',
+    ],
+    correct: 1,
+    feedback: '<strong>Xyleem (houtvaten)</strong>: transport van <strong>water + mineralen</strong>, van wortel OMHOOG naar alle plantendelen. Dit is de anorganische sapstroom. Xyleem bestaat uit dode cellen met houtachtige wanden.',
+    fromDB: false,
+  },
+  {
+    type: 'mc',
+    q: 'Wat transporteert floëem (bastvaten/zeefvaten) en in welke richting?',
+    options: [
+      'Water en mineralen van wortel omhoog',
+      'Assimilaten (glucose, sacharose) van bladeren naar alle delen van de plant',
+      'CO₂ van bladeren naar buiten',
+      'Auxine uitsluitend neerwaarts van knop naar wortel',
+    ],
+    correct: 1,
+    feedback: '<strong>Floëem (zeefvaten/bastvaten)</strong>: transport van <strong>assimilaten</strong> (glucose, sacharose, organische moleculen), van bladeren naar alle plantendelen. Dit is de organische sapstroom. Floëem bestaat uit levende zeefvaten.',
+  },
+  {
+    type: 'mc',
+    q: 'In een stengeldoorsnede van een dicotyle plant: xyleem bevindt zich...?',
+    options: [
+      'Aan de buitenkant van de vaatbundel (naast de epidermis)',
+      'Aan de binnenkant van de vaatbundel (richting het centrum)',
+      'Verspreid door het hele grondweefsel',
+      'Alleen in de cuticula',
+    ],
+    correct: 1,
+    feedback: 'In een stengel van dicotylen ligt <strong>xyleem aan de binnenkant</strong> van de vaatbundel (richting het centrum). Floëem ligt aan de buitenkant (richting de epidermis). Tussenin: meristeemweefsel (cambium).',
+  },
+  {
+    type: 'mc',
+    q: 'Hoe onderscheid je een worteldoorsnede van een stengeldoorsnede?',
+    options: [
+      'In de wortel liggen vaatbundels in een kring; in de stengel centraal',
+      'In de wortel is het xyleem stervormig centraal; in de stengel zitten vaatbundels in een ring aan de buitenkant',
+      'Er is geen zichtbaar verschil in een doorsnede',
+      'De wortel heeft geen floëem',
+    ],
+    correct: 1,
+    feedback: 'In een <strong>worteldoorsnede</strong> is het xyleem <strong>stervormig centraal</strong> geplaatst, met floëem ertussen. In een <strong>stengeldoorsnede</strong> (dicotyl) liggen de vaatbundels in een ring. Dit is een klassiek examenvraagtype!',
+    fromDB: true,
+  },
+  {
+    type: 'mc',
+    q: 'Hoe worden de termen "houtvaten" en "bastvaten" ook wetenschappelijk aangeduid?',
+    options: [
+      'Houtvaten = floëem; bastvaten = xyleem',
+      'Houtvaten = xyleem; bastvaten = floëem',
+      'Houtvaten = meristeemweefsel; bastvaten = collenchym',
+      'Houtvaten = stomata; bastvaten = epidermis',
+    ],
+    correct: 1,
+    feedback: '<strong>Houtvaten = xyleem</strong> (transport water + mineralen omhoog). <strong>Bastvaten = floëem/zeefvaten</strong> (transport suikers). Ken beide synoniemen voor het examen!',
+  },
+  {
+    type: 'mc',
+    q: 'Welke twee celtypes onderscheid je in transportweefsel?',
+    options: [
+      'Epidermiscellen en parenchymcellen',
+      'Xyleemcellen (dood, lignine) en floëemcellen (levend, zeefvaten)',
+      'Collenchymcellen en sclerenchymcellen',
+      'Meristeemcellen en stamcellen',
+    ],
+    correct: 1,
+    feedback: 'Transportweefsel bevat <strong>xyleemcellen</strong> (dode cellen met verdikte, verhoutste wanden — vormen buizen voor waterstroming) en <strong>floëemcellen/zeefvaten</strong> (levende cellen met zeefplaten tussen cellen voor suikertransport).',
+    fromDB: true,
+  },
+  {
+    type: 'mc',
+    q: 'Wat is de rol van de stengel in het transportstelsel van de plant?',
+    options: [
+      'Water opnemen uit de bodem',
+      'Verbinding bieden tussen wortel en blad; vaatbundels geleiden sap omhoog en omlaag',
+      'Fotosynthese uitvoeren als hoofdorgaan',
+      'Gasuitwisseling mogelijk maken via huidmondjes',
+    ],
+    correct: 1,
+    feedback: 'De <strong>stengel</strong> is de verbindingsweg: vaatbundels (xyleem + floëem) lopen door de stengel en verbinden wortels met bladeren. Xyleem voert water omhoog, floëem voert suikers omlaag (of naar groeiende delen).',
+  },
+  {
+    type: 'mc',
+    q: 'In de winter slaan bomen suikers op in de wortels. Wat gebeurt in het voorjaar?',
+    options: [
+      'Xyleem transporteert suikers neerwaarts naar de wortels',
+      'Floëem transporteert suikerrijke sap opwaarts naar de twijgen voor bladgroei (bv. berkensap)',
+      'De vaatbundels lossen op en hervorm zich',
+      'Water verdampt via de wortels om suikers te concentreren',
+    ],
+    correct: 1,
+    feedback: 'In het voorjaar is er een opwaartse, suikerrijke stroom van de wortels via het <strong>floëem</strong> naar de nieuwe knoppen. Die suikers voeden de groei van nieuwe bladeren. Denk aan berkensap en ahornsiroop!',
+  },
+  {
+    type: 'mc',
+    q: 'Wat is de relatie tussen transportweefsel en homeostase?',
+    options: [
+      'Transportweefsel heeft geen rol in homeostase',
+      'Transportweefsel distribueert water, mineralen, suikers en hormonen naar alle cellen, waardoor een stabiel intern milieu gehandhaafd kan worden',
+      'Transportweefsel vervangt het immuunsysteem bij planten',
+      'Transportweefsel reguleert enkel de temperatuur',
+    ],
+    correct: 1,
+    feedback: 'Zonder transportweefsel kan een plant geen stoffen herverdelen. <strong>Homeostase</strong> vereist dat elke cel toegang heeft tot water, mineralen, suikers en hormonen. Xyleem en floëem maken dit mogelijk — ze zijn essentieel voor de interne balans.',
+    fromDB: true,
+  },
+  {
+    type: 'mc',
+    q: 'Xyleemcellen zijn dood op functioneel vlak. Waarom is dit voordelig?',
+    options: [
+      'Dode cellen kunnen meer fotosynthese doen',
+      'Dode cellen met verhoutste wanden vormen stevige, holle buizen met minder weerstand voor waterstroming',
+      'Dode cellen produceren meer auxine',
+      'Dode cellen kunnen water beter opslaan',
+    ],
+    correct: 1,
+    feedback: 'Xyleemcellen sterven af en laten hun <strong>verhoutste celwanden</strong> achter als holle buizen. Dit geeft maximale doorstroming met minimale weerstand. De celwanden bieden ook structurele stevigheid aan de plant.',
+    fromDB: true,
+  },
+],
+
+bladdoorsnede: [
+  {
+    type: 'label',
+    q: 'Label de structuren in de dwarsdoorsnede van een blad. Klik een nummer, kies dan de juiste term.',
+    image: 'leaf',
+    labels: [
+      { id: 1, x: 50, y: 8, answer: 'Cuticula', pct: true },
+      { id: 2, x: 50, y: 18, answer: 'Epidermis (bovenkant)' },
+      { id: 3, x: 50, y: 33, answer: 'Pallisadeparenchym' },
+      { id: 4, x: 50, y: 55, answer: 'Sponsparenchym' },
+      { id: 5, x: 25, y: 50, answer: 'Vaatbundel (nerf)' },
+      { id: 6, x: 50, y: 80, answer: 'Epidermis (onderkant)' },
+      { id: 7, x: 72, y: 88, answer: 'Huidmondje (stoma)' },
+    ],
+    options: ['Cuticula', 'Epidermis (bovenkant)', 'Pallisadeparenchym', 'Sponsparenchym', 'Vaatbundel (nerf)', 'Epidermis (onderkant)', 'Huidmondje (stoma)', 'Xyleem', 'Floëem'],
+    feedback: 'Uitstekend! Van boven naar onder: cuticula → epidermis → pallisadeparenchym (fotosynthese) → sponsparenchym (gasuitwisseling) → epidermis → huidmondjes. Vaatbundels (nerven) lopen er doorheen.',
+  },
+  {
+    type: 'mc',
+    q: 'Waarom zijn pallisadecellen langwerpig (staafvormig) van vorm?',
+    options: [
+      'Om meer water op te slaan',
+      'Om per cel zo lang mogelijk licht door te laten en zo veel mogelijk bladgroenkorrels te activeren vóór de stralen de celmembraan raken',
+      'Om de stengel mechanisch te ondersteunen',
+      'Om gasuitwisseling te maximaliseren',
+    ],
+    correct: 1,
+    feedback: 'De langwerpige vorm van <strong>pallisadecellen</strong> maximaliseert lichtinvang: lichtstralen reizen door de cel van boven naar beneden en activeren zoveel mogelijk chloroplasten langs de weg. Een korte, brede cel zou te veel licht meteen blokkeren.',
+  },
+  {
+    type: 'mc',
+    q: 'Welke functie hebben de luchtkamers/holtes in het sponsparenchym?',
+    options: [
+      'Opslag van water als reserve',
+      'Gasuitwisseling: CO₂ en O₂ diffunderen via de holtes naar en van de huidmondjes',
+      'Structurele ondersteuning van het blad',
+      'Transport van suikers naar de stengel',
+    ],
+    correct: 1,
+    feedback: 'De <strong>holtes in het sponsparenchym</strong> zijn luchtkamers. CO₂ diffundeert van de huidmondjes door deze ruimtes naar de cellen; O₂ en waterdamp verplaatsen zich omgekeerd. Zonder deze ruimtes zou gasuitwisseling te traag gaan.',
+  },
+  {
+    type: 'mc',
+    q: 'In een vaatbundel van een blad: xyleem bevindt zich aan de... kant?',
+    options: [
+      'Onderkant (richting huidmondjes)',
+      'Bovenkant (richting licht/cuticula)',
+      'Midden, omringd door floëem',
+      'Buitenste ring van de vaatbundel',
+    ],
+    correct: 1,
+    feedback: 'In een bladnerf ligt <strong>xyleem aan de bovenkant</strong> (richting licht). Floëem aan de onderkant (richting huidmondjes). Onthoud: <strong>X</strong>yleem = naar bo<strong>X</strong>en (boven).',
+    fromDB: true,
+  },
+  {
+    type: 'mc',
+    q: 'Wat is de functie van huidmondjes (stomata)?',
+    options: [
+      'Licht absorberen voor fotosynthese',
+      'Gasuitwisseling (CO₂ naar binnen, O₂ en H₂O naar buiten) en regulatie waterhuishouding',
+      'Mechanische bescherming van de bladrand',
+      'Water opnemen vanuit de bodemlucht',
+    ],
+    correct: 1,
+    feedback: '<strong>Huidmondjes</strong> zijn de poortjes voor: CO₂ (naar binnen voor fotosynthese), O₂ (naar buiten als afvalproduct fotosynthese) en <strong>waterdamp</strong> (transpiratie). Ze reguleren ook de waterhuishouding door open/sluiten.',
+  },
+  {
+    type: 'mc',
+    q: 'Hoe werkt het openen van een huidmondje?',
+    options: [
+      'Sluitcellen pompen actief CO₂ naar buiten → cel krimpt → opening',
+      'Water stroomt de sluitcellen in → vacuole vult → druk op celwand verhoogt → celwand buigt → opening',
+      'Temperatuurstijging veroorzaakt directe chemische opening',
+      'Auxine stimuleert sluitcellen te strekken',
+    ],
+    correct: 1,
+    feedback: 'Sluitcellen nemen water op → de <strong>vacuole vult zich</strong> → turgordruk (waterdruk) stijgt → de asymmetrische celwand buigt naar buiten → het huidmondje opent. Bij watertekort verliest de cel water → vacuole krimpt → huidmondje sluit.',
+  },
+  {
+    type: 'mc',
+    q: 'Wat is de cuticula en waarom is ze belangrijk voor homeostase?',
+    options: [
+      'Een laag meristeemcellen die groei stimuleert',
+      'Een wasachtige laag op de epidermis die ongecontroleerde waterverdamping voorkomt → bijdrage aan waterhuishouding',
+      'Een pigmentlaag die licht absorbeert voor fotosynthese',
+      'Een laag stomatacellen die gasuitwisseling regelt',
+    ],
+    correct: 1,
+    feedback: 'De <strong>cuticula</strong> is een wasachtige, waterafstotende laag. Zonder cuticula zou water voortdurend verdampen via de epidermis — de plant zou snel uitdrogen. Door verdamping te beperken tot de huidmondjes, kan de plant zijn waterbalans (homeostase) regelen.',
+  },
+  {
+    type: 'mc',
+    q: 'Welke cellen omgeven direct het huidmondje en regelen het openen/sluiten?',
+    options: [
+      'Epidermiscellen',
+      'Sluitcellen (steuncellen)',
+      'Parenchymcellen',
+      'Xyleemcellen',
+    ],
+    correct: 1,
+    feedback: 'Huidmondjes bestaan uit twee <strong>sluitcellen</strong> (ook steuncellen). Hun turgordruk bepaalt of het huidmondje open of dicht is. Ze zijn gespecialiseerde epidermiscellen met chloroplasten.',
+  },
+],
+
+waterhuishouding: [
+  {
+    type: 'mc',
+    q: 'Hoe draagt waterhuishouding bij aan homeostase in de plant?',
+    options: [
+      'Door bladeren te laten vallen in droge periodes',
+      'Door de waterconcentratie in cellen stabiel te houden via openen/sluiten van huidmondjes, wat ook fotosynthese en gasuitwisseling regelt',
+      'Door meer wortels te vormen bij droogte',
+      'Door de cuticula dikker te maken',
+    ],
+    correct: 1,
+    feedback: 'Waterhuishouding = regeling van wateraanvoer en -afvoer. Door huidmondjes te openen/sluiten regelt de plant de waterconcentratie in cellen (homeostase). Dit is tegelijk gekoppeld aan CO₂-opname (fotosynthese) en gasuitwisseling.',
+  },
+  {
+    type: 'mc',
+    q: 'Wat is worteldruk en hoe ontstaat het?',
+    options: [
+      'Druk door de zwaartekracht op de wortel',
+      'Overdruk in de wortels door actieve mineraalopname → concentratieverschil → water stroomt osmotisch met grote druk de wortel in',
+      'Druk veroorzaakt door transpiratie in de bladeren',
+      'Druk door capillaire werking in de houtvaten',
+    ],
+    correct: 1,
+    feedback: '<strong>Worteldruk</strong>: de wortel neemt actief mineralen op → hoge concentratie in de wortel vs. bodem → water stroomt osmotisch de wortel in met grote kracht (overdruk). Dit drijft de opwaartse waterstroom aan vanuit de basis.',
+  },
+  {
+    type: 'mc',
+    q: 'Wat is capillaire werking en welke twee krachten zijn betrokken?',
+    options: [
+      'Opstijging door osmotisch druk; betrokken: diffusie en osmsoe',
+      'Opstijging van vloeistof in smalle buisjes door cohesie (water-water) en adhesie (water-wand)',
+      'Daling van vloeistof door de zwaartekracht; betrokken: gravitatie en weerstand',
+      'Transport via elektrische potentiaal; betrokken: ionenpomp en membraanpotentiaal',
+    ],
+    correct: 1,
+    feedback: '<strong>Capillaire werking</strong>: opstijging in smalle buisjes (houtvaten). Twee krachten: <strong>cohesie</strong> (watermoleculen trekken elkaar aan → waterketting) en <strong>adhesie</strong> (water hecht aan de wand van houtvaten). Samen trekken ze de waterkolom omhoog.',
+  },
+  {
+    type: 'mc',
+    q: 'Hoe ontstaat er in de bladeren een "onderdruk" die water omhoog zuigt?',
+    options: [
+      'Fotosynthese verbruikt water, wat een vacuüm creëert',
+      'Transpiratie via huidmondjes laat water verdampen → lege ruimte → water wordt uit de houtvaten (nerven) getrokken → trekt de waterkolom omhoog',
+      'Worteldruk pompt water te snel omhoog, waardoor overdruk in de stengel ontstaat',
+      'Bladeren pompen actief water de cel in',
+    ],
+    correct: 1,
+    feedback: 'Door <strong>transpiratie</strong> (waterdamp via huidmondjes) verlaten de bladcellen water. Er ontstaat een lege ruimte die met water gevuld wordt vanuit de houtvaten. Dit trekt de waterkolom verder omhoog — dit is de <strong>onderdruk</strong> (transpiratietrekkracht).',
+  },
+  {
+    type: 'mc',
+    q: 'Bij welke omstandigheid sluiten de huidmondjes om uitdroging te voorkomen?',
+    options: [
+      'Veel licht en voldoende water',
+      'Hoge temperatuur + onvoldoende wateraanvoer',
+      'Lage CO₂-concentratie in de cel',
+      'Veel CO₂ en hoge vochtigheid',
+    ],
+    correct: 1,
+    feedback: 'Op een hete, zonnige dag met onvoldoende wateraanvoer sluiten de huidmondjes. Zo voorkomt de plant uitdroging. Nadeel: geen CO₂-opname meer → fotosynthese stopt. Als CO₂ te laag wordt, moeten ze toch even open — een voortdurend compromis.',
+  },
+  {
+    type: 'mc',
+    q: 'De feedbackloop bij de huidmondjes: hoe werkt dit bij te weinig water?',
+    options: [
+      'Prikkel (watertekort) → receptoren in sluitcellen detecteren het → huidmondjes openen → meer CO₂ → fotosynthese',
+      'Prikkel (watertekort) → receptoren detecteren het → sluitcellen verliezen turgor → huidmondjes sluiten → minder transpiratie → water behoudt → homeostase hersteld',
+      'Prikkel (watertekort) → xyleem produceert meer water → wortels groeien sneller',
+      'Prikkel (watertekort) → auxine stimuleert bladval',
+    ],
+    correct: 1,
+    feedback: 'Dit is de <strong>feedbackloop</strong>: Watertekort (prikkel) → sluitcelreceptoren detecteren lage waterconcentratie → huidmondjes sluiten → minder transpiratie → minder waterverlies → concentratie herstelt = <strong>negatieve terugkoppeling</strong> (correctie).',
+  },
+  {
+    type: 'mc',
+    q: 'Wat is turgordruk en waarom is het belangrijk voor plantenstevigheid?',
+    options: [
+      'De druk van wind op de plant',
+      'De waterdruk in de vacuole die de cel uitzet en de celwand onder spanning brengt — geeft stevigheid aan niet-verhoutste plantendelen',
+      'De druk van mineralen in de wortel',
+      'De druk van CO₂ in de luchtkamers van het sponsparenchym',
+    ],
+    correct: 1,
+    feedback: '<strong>Turgordruk</strong>: de vacuole vult zich met water → druk op de celwand → cel wordt strak en stevig. Dit geeft stevigheid aan niet-verhoutste delen (bv. bladeren, jonge stengels). Bij watergebrek daalt de turgordruk → plant verwelkt.',
+    fromDB: true,
+  },
+  {
+    type: 'mc',
+    q: 'Welke rol speelt water bij fotosynthese?',
+    options: [
+      'Water is het eindproduct van fotosynthese',
+      'Water is een grondstof: H₂O + CO₂ + lichtenergie → glucose + O₂. Water levert ook waterstofatomen voor de glucosevorming.',
+      'Water transporteert alleen de bladgroenkorrels',
+      'Water vormt het waslaagje (cuticula)',
+    ],
+    correct: 1,
+    feedback: '<strong>Fotosynthese</strong>: 6CO₂ + 6H₂O + lichtenergie → C₆H₁₂O₆ + 6O₂. Water is een directe grondstof. Het water wordt gesplitst (fotolyse): H-atomen gaan naar glucosevorming, O₂ verlaat de cel via de huidmondjes als bijproduct.',
+    fromDB: true,
+  },
+  {
+    type: 'mc',
+    q: 'Gunstige temperatuur zorgt voor positieve feedback bij huidmondjes. Wat betekent dit?',
+    options: [
+      'De temperatuur verhoogt de turgordruk permanent',
+      'Een gunstige temperatuur (10-35°C) bevordert fotosynthese → huidmondjes openen → meer CO₂ → meer fotosynthese → versterking van het effect (positieve feedback)',
+      'Negatieve feedback: huidmondjes sluiten bij lage temperatuur om CO₂ vast te houden',
+      'Temperatuur heeft geen invloed op huidmondjes',
+    ],
+    correct: 1,
+    feedback: '<strong>Positieve feedback</strong>: gunstige temp → huidmondjes open → CO₂ binnenin → fotosynthese → plant groeit → meer energievraag → huidmondjes blijven open. Negatieve feedback treedt op als het te warm wordt (>35°C) of te koud (<10°C): huidmondjes sluiten ter bescherming.',
+  },
+  {
+    type: 'mc',
+    q: 'Wat is de rol van water voor transport van hormonen in de plant?',
+    options: [
+      'Hormonen worden uitsluitend via elektrische signalen getransporteerd, water speelt geen rol',
+      'Water is het oplosmiddel in het floëem en xyleem; hormonen (zoals auxine) lossen op in water en worden zo door de plant vervoerd',
+      'Hormonen produceren water als bijproduct',
+      'Water vertraagt hormoonproductie',
+    ],
+    correct: 1,
+    feedback: 'Water is het universele oplosmiddel in planten. Hormonen zoals <strong>auxine en ethyleen</strong> zijn deels wateroplosbaar en worden via de sapstromen (xyleem/floëem) door de plant gedistribueerd. Zonder water geen hormoonverspreiding → geen signaaltransductie.',
+    fromDB: true,
+  },
+],
+
+terminologie: [
+  {
+    type: 'mc',
+    q: 'Wat is de correcte definitie van "transpiratie"?',
+    options: [
+      'Opname van water via de wortels',
+      'Verdamping van water vanuit de bladeren, voornamelijk via de huidmondjes',
+      'Transport van suikers van blad naar wortel',
+      'Opname van CO₂ via de huidmondjes',
+    ],
+    correct: 1,
+    feedback: '<strong>Transpiratie</strong> = verdamping van water vanuit de plant, hoofdzakelijk via de huidmondjes (stomata) van de bladeren. Het drijft mee de opwaartse waterbeweging (trekkracht van boven).',
+  },
+  {
+    type: 'mc',
+    q: 'Wat betekent "gasuitwisseling" bij planten precies?',
+    options: [
+      'Alleen CO₂ opnemen',
+      'De uitwisseling van CO₂ (naar binnen) en O₂ + waterdamp (naar buiten) via huidmondjes',
+      'Transport van gassen via de houtvaten',
+      'Omzetting van O₂ in CO₂ via respiratie, uitsluitend in de nacht',
+    ],
+    correct: 1,
+    feedback: '<strong>Gasuitwisseling</strong>: CO₂ gaat naar binnen (grondstof fotosynthese), O₂ gaat naar buiten (bijproduct fotosynthese) en H₂O-damp verlaat de plant (transpiratie). Dit alles via de <strong>huidmondjes</strong>.',
+  },
+  {
+    type: 'drag',
+    q: 'Koppel elk begrip aan de correcte definitie.',
+    pairs: [
+      { label: 'Homeostase', answer: 'Handhaven inwendig evenwicht' },
+      { label: 'Feedbackloop', answer: 'Terugkoppelingscyclus als correctiemechanisme' },
+      { label: 'Worteldruk', answer: 'Overdruk in wortel door mineraalopname' },
+      { label: 'Capillaire werking', answer: 'Opstijging water via cohesie + adhesie' },
+    ],
+    feedback: 'Perfecte terminologiebeheersing! Homeostase, feedbackloop, worteldruk en capillaire werking zijn essentiële vaktermen.',
+  },
+  {
+    type: 'mc',
+    q: 'Wat zijn stomata?',
+    options: [
+      'De houtvaten in de vaatbundel',
+      'De huidmondjes: openingen in de epidermis gevormd door twee sluitcellen, voor gasuitwisseling en waterregulatie',
+      'De luchtkamers in het sponsparenchym',
+      'De bladgroenkorrels in pallisadecellen',
+    ],
+    correct: 1,
+    feedback: '<strong>Stomata (ev. stoma)</strong> = huidmondjes. Elke stoma bestaat uit twee <strong>sluitcellen</strong> die een opening vormen in de epidermis. Via stomata: CO₂ naar binnen, O₂ en H₂O naar buiten.',
+  },
+  {
+    type: 'mc',
+    q: 'Wat is het verschil tussen "inwendig evenwicht" en "homeostase"?',
+    options: [
+      'Homeostase is statisch; inwendig evenwicht is dynamisch',
+      'Het zijn synoniemen: homeostase IS het handhaven van het inwendig evenwicht',
+      'Inwendig evenwicht geldt alleen voor temperatuur; homeostase voor alle factoren',
+      'Homeostase geldt alleen voor dieren; inwendig evenwicht voor planten',
+    ],
+    correct: 1,
+    feedback: '<strong>Homeostase = inwendig evenwicht</strong>. Beide termen verwijzen naar hetzelfde concept: het dynamisch handhaven van een stabiel intern milieu. Gebruik beide termen in je examen!',
+  },
+  {
+    type: 'mc',
+    q: 'Wat is de betekenis van "assimilaten" in de context van floëemtransport?',
+    options: [
+      'Anorganische mineralen opgenomen door de wortel',
+      'Grote organische moleculen (glucose, sacharose) geproduceerd via fotosynthese, getransporteerd via het floëem',
+      'Hormonen zoals auxine en ethyleen',
+      'De celwandbestanddelen van xyleemcellen',
+    ],
+    correct: 1,
+    feedback: '<strong>Assimilaten</strong> = organische verbindingen geproduceerd door fotosynthese: glucose, sacharose. Ze worden via het <strong>floëem</strong> van de bladeren naar alle andere plantendelen getransporteerd (ook naar opslagorganen).',
+  },
+  {
+    type: 'mc',
+    q: 'Wat is het verschil tussen "xyleem" en "floëem" in één zin?',
+    options: [
+      'Xyleem transporteert suikers omlaag; floëem water omhoog',
+      'Xyleem transporteert water + mineralen omhoog; floëem transporteert assimilaten (organisch) in alle richtingen',
+      'Ze transporteren beide water maar in tegengestelde richtingen',
+      'Xyleem is voor groei; floëem voor bescherming',
+    ],
+    correct: 1,
+    feedback: 'Kernverschil: <strong>Xyleem</strong> = water + mineralen omhoog (anorganisch). <strong>Floëem</strong> = assimilaten (organisch) van bron (blad) naar sink (wortel, vrucht, knop). Beide zijn onderdeel van de vaatbundel.',
+  },
+  {
+    type: 'text',
+    q: 'Definieer "vaatbundel" in één of twee zinnen met de vaktermen xyleem en floëem.',
+    keywords: ['xyleem', 'floëem', 'transport', 'bundel', 'plant'],
+    ideal: 'Een vaatbundel is een gestructureerde eenheid van xyleem en floëem die door de plant loopt en zorgt voor het transport van water, mineralen en assimilaten.',
+    feedback: 'Een <strong>vaatbundel</strong> = xyleem + floëem (+ meristeemweefsel + sclerenchym). Loopt door wortel, stengel en blad en verbindt alle plantendelen voor transport.',
+  },
+  {
+    type: 'mc',
+    q: 'Wat betekent "turgordruk"? (vakterm voor stevigheid)',
+    options: [
+      'De druk van windkrachten op de stengel',
+      'De waterdruk in de plantenvacuole die cellen uitzet en stevigheid geeft aan niet-verhoutste plantendelen',
+      'De spanning in de celwand veroorzaakt door sclerenchym',
+      'De druk van het sapstroom in de houtvaten',
+    ],
+    correct: 1,
+    feedback: '<strong>Turgordruk</strong> = de druk van water in de <strong>vacuole</strong> op de celwand. Geeft niet-verhoutste plantendelen (blaadjes, jonge stengels) hun stevigheid. Bij watergebrek daalt de turgordruk → verwelking. Een essentiële vakterm!',
+    fromDB: true,
+  },
+  {
+    type: 'mc',
+    q: 'Fotosynthese, transpiratie, worteldruk, capillaire werking — in welke volgorde werken deze samen voor watertransport?',
+    options: [
+      'Fotosynthese → transpiratie → capillaire werking → worteldruk',
+      'Worteldruk (duwt water in) → capillaire werking (trekt omhoog) → transpiratie (trekt van boven) → fotosynthese (gebruikt water)',
+      'Transpiratie → fotosynthese → worteldruk → capillaire werking',
+      'Capillaire werking → worteldruk → transpiratie → fotosynthese',
+    ],
+    correct: 1,
+    feedback: 'Samenwerking: <strong>Worteldruk</strong> (overdruk onderaan) + <strong>capillaire werking</strong> (opstijging via cohesie/adhesie) + <strong>transpiratietrekkracht</strong> (onderdruk bovenaan door verdamping) → samen transporteren ze water van wortel tot blad, waar het gebruikt wordt voor <strong>fotosynthese</strong>.',
+    fromDB: true,
+  },
+],
+};
+
+// ═══════════════════════════════════════════════════════
+// RENDERING HOME
+// ═══════════════════════════════════════════════════════
+
+function renderHome() {
+  const grid = document.getElementById('modules-grid');
+  grid.innerHTML = '';
+
+  let totalQ = 0, totalDone = 0;
+  MODULES.forEach(m => {
+    const qs = QUESTIONS[m.id] || [];
+    const prog = state.moduleProgress[m.id] || { done: 0, total: qs.length, stars: 0 };
+    totalQ += qs.length;
+    totalDone += prog.done;
+
+    const card = document.createElement('div');
+    card.className = 'module-card';
+    card.style.setProperty('--module-color', m.color + '22');
+    card.onclick = () => startModule(m.id);
+
+    const pct = qs.length ? Math.round((prog.done / qs.length) * 100) : 0;
+    const stars = Math.min(3, prog.stars || 0);
+
+    card.innerHTML = `
+      <div class="module-icon">${m.icon}</div>
+      <div class="module-title" style="color:${m.color}">${m.title}</div>
+      <div class="module-desc">${m.desc}</div>
+      <div class="module-meta">
+        <span class="module-progress" style="color:${m.color}">${prog.done}/${qs.length} · ${pct}%</span>
+        <div class="module-stars">
+          ${[0,1,2].map(i => `<span class="star${i < stars ? ' earned' : ''}" style="color:${m.color}">★</span>`).join('')}
+        </div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+
+  const pct = totalQ ? Math.round((totalDone / totalQ) * 100) : 0;
+  document.getElementById('home-progress-bar').style.width = pct + '%';
+  document.getElementById('home-progress-pct').textContent = pct + '%';
+  document.getElementById('home-mastered').textContent = totalDone;
+  document.getElementById('home-total').textContent = totalQ;
+
+  const xpEl = document.getElementById('xp-ring-fill');
+  const maxXP = totalQ * 15;
+  const xpPct = Math.min(1, state.xp / Math.max(maxXP, 1));
+  xpEl.style.strokeDashoffset = 213.6 * (1 - xpPct);
+  document.getElementById('xp-ring-text').textContent = state.xp;
+}
+
+// ═══════════════════════════════════════════════════════
+// MODULE START
+// ═══════════════════════════════════════════════════════
+
+function startModule(moduleId) {
+  const mod = MODULES.find(m => m.id === moduleId);
+  const qs = (QUESTIONS[moduleId] || []).slice();
+  // Shuffle
+  for (let i = qs.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [qs[i], qs[j]] = [qs[j], qs[i]];
+  }
+
+  state.currentModule = mod;
+  state.currentQuestions = qs;
+  state.currentIdx = 0;
+  state.streak = 0;
+  state.sessionCorrect = 0;
+  state.sessionWrong = 0;
+  state.sessionXP = 0;
+  state.wrongQuestions = [];
+  state.dots = qs.map(() => 'pending');
+
+  document.getElementById('quiz-title').textContent = mod.title;
+  document.getElementById('quiz-title').style.color = mod.color;
+  renderDots();
+  showScreen('quiz');
+  renderQuestion();
+}
+
+function retryWeak() {
+  if (state.wrongQuestions.length === 0) {
+    goHome();
+    return;
+  }
+  const mod = state.currentModule;
+  state.currentQuestions = [...state.wrongQuestions];
+  state.currentIdx = 0;
+  state.streak = 0;
+  state.sessionCorrect = 0;
+  state.sessionWrong = 0;
+  state.sessionXP = 0;
+  state.wrongQuestions = [];
+  state.dots = state.currentQuestions.map(() => 'pending');
+  renderDots();
+  showScreen('quiz');
+  renderQuestion();
+}
+
+// ═══════════════════════════════════════════════════════
+// QUESTION RENDERING
+// ═══════════════════════════════════════════════════════
+
+let dragState = { dragging: null };
+let labelState = { selected: null, answers: {} };
+
+function renderQuestion() {
+  const q = state.currentQuestions[state.currentIdx];
+  if (!q) { showResults(); return; }
+
+  const total = state.currentQuestions.length;
+  document.getElementById('q-counter').textContent = `Vraag ${state.currentIdx + 1} / ${total}`;
+  document.getElementById('q-xp').textContent = `+${q.type === 'drag' || q.type === 'label' ? 20 : 10} XP`;
+  document.getElementById('quiz-streak').textContent = `🔥 ${state.streak}`;
+  document.getElementById('question-text').textContent = q.q;
+
+  const ctx = document.getElementById('question-context');
+  if (q.context) { ctx.style.display = 'block'; ctx.textContent = q.context; }
+  else { ctx.style.display = 'none'; }
+
+  const badge = document.getElementById('q-type-badge');
+  const typeNames = { mc: 'Meerkeuze', text: 'Invulvraag', drag: 'Koppelen', label: 'Labelen' };
+  badge.textContent = typeNames[q.type] || '';
+
+  const dbBadge = document.getElementById('q-db-badge');
+  dbBadge.style.display = q.fromDB ? 'inline-block' : 'none';
+
+  document.getElementById('feedback-box').style.display = 'none';
+
+  const body = document.getElementById('question-body');
+  body.innerHTML = '';
+
+  if (q.type === 'mc') renderMC(q, body);
+  else if (q.type === 'text') renderText(q, body);
+  else if (q.type === 'drag') renderDrag(q, body);
+  else if (q.type === 'label') renderLabel(q, body);
+}
+
+function renderMC(q, body) {
+  const grid = document.createElement('div');
+  grid.className = 'options-grid';
+  const letters = ['A','B','C','D'];
+  q.options.forEach((opt, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn';
+    btn.innerHTML = `<span class="option-letter">${letters[i]}</span><span>${opt}</span>`;
+    btn.onclick = () => answerMC(i, q, grid);
+    grid.appendChild(btn);
+  });
+  body.appendChild(grid);
+}
+
+function answerMC(chosen, q, grid) {
+  const btns = grid.querySelectorAll('.option-btn');
+  btns.forEach(b => b.disabled = true);
+
+  const correct = chosen === q.correct;
+  btns[chosen].classList.add(correct ? 'correct' : 'wrong');
+  if (!correct) btns[q.correct].classList.add('correct');
+
+  handleAnswer(correct, q);
+}
+
+function renderText(q, body) {
+  const wrap = document.createElement('div');
+  wrap.className = 'text-input-wrap';
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.className = 'text-input';
+  inp.placeholder = 'Schrijf je antwoord hier...';
+  inp.autocomplete = 'off';
+
+  const btn = document.createElement('button');
+  btn.className = 'text-submit';
+  btn.textContent = 'Bevestig';
+
+  const submit = () => {
+    const val = inp.value.toLowerCase().trim();
+    if (!val) return;
+    inp.disabled = true;
+    btn.disabled = true;
+    const hit = q.keywords.some(k => val.includes(k.toLowerCase()));
+    handleAnswer(hit, q);
+  };
+
+  btn.onclick = submit;
+  inp.onkeydown = e => { if (e.key === 'Enter') submit(); };
+
+  wrap.appendChild(inp);
+  wrap.appendChild(btn);
+  body.appendChild(wrap);
+  setTimeout(() => inp.focus(), 50);
+}
+
+function renderDrag(q, body) {
+  const cont = document.createElement('div');
+  cont.className = 'drag-container';
+
+  // Shuffle answers
+  const answers = q.pairs.map(p => p.answer).sort(() => Math.random() - 0.5);
+  const assigned = {};
+
+  const dropsHTML = q.pairs.map((pair, i) => `
+    <div class="drop-row">
+      <div class="drop-label">${pair.label}</div>
+      <div class="drop-zone" id="dz-${i}" data-index="${i}">${answers.includes(pair.answer) ? 'Sleep hier...' : ''}</div>
+    </div>
+  `).join('');
+
+  const itemsHTML = answers.map(a => `<div class="drag-item" draggable="true" data-value="${a}">${a}</div>`).join('');
+
+  cont.innerHTML = `
+    <div class="drop-targets">${dropsHTML}</div>
+    <div class="drag-items" id="drag-pool">${itemsHTML}</div>
+  `;
+  body.appendChild(cont);
+
+  // Drag events
+  cont.querySelectorAll('.drag-item').forEach(item => {
+    item.addEventListener('dragstart', e => {
+      dragState.dragging = item;
+      item.classList.add('dragging');
+      e.dataTransfer.setData('text', item.dataset.value);
+    });
+    item.addEventListener('dragend', () => {
+      item.classList.remove('dragging');
+    });
+  });
+
+  cont.querySelectorAll('.drop-zone').forEach(zone => {
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('over'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('over'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('over');
+      const val = e.dataTransfer.getData('text');
+      const idx = parseInt(zone.dataset.index);
+      // If zone was filled, return old item to pool
+      if (zone.dataset.filled) {
+        const pool = document.getElementById('drag-pool');
+        const old = document.createElement('div');
+        old.className = 'drag-item';
+        old.draggable = true;
+        old.dataset.value = zone.dataset.filled;
+        old.textContent = zone.dataset.filled;
+        attachDragItem(old, cont);
+        pool.appendChild(old);
+      }
+      // Remove item from wherever it was
+      if (dragState.dragging) dragState.dragging.remove();
+      zone.textContent = val;
+      zone.classList.add('filled');
+      zone.dataset.filled = val;
+      assigned[idx] = val;
+
+      // Check if all filled
+      const allFilled = Object.keys(assigned).length === q.pairs.length;
+      if (allFilled) {
+        let allCorrect = true;
+        cont.querySelectorAll('.drop-zone').forEach((z, i) => {
+          if (z.dataset.filled !== q.pairs[i].answer) allCorrect = false;
+        });
+        handleAnswer(allCorrect, q);
+      }
+    });
+  });
+}
+
+function attachDragItem(item, cont) {
+  item.addEventListener('dragstart', e => {
+    dragState.dragging = item;
+    item.classList.add('dragging');
+    e.dataTransfer.setData('text', item.dataset.value);
+  });
+  item.addEventListener('dragend', () => item.classList.remove('dragging'));
+}
+
+function renderLabel(q, body) {
+  labelState = { selected: null, answers: {} };
+
+  const container = document.createElement('div');
+  container.style.position = 'relative';
+  container.style.display = 'inline-block';
+  container.style.width = '100%';
+
+  // Draw leaf SVG
+  const svg = drawLeafSVG(q.labels);
+  container.appendChild(svg);
+  body.appendChild(container);
+
+  // Label options
+  const chips = document.createElement('div');
+  chips.className = 'label-options';
+  chips.id = 'label-chips';
+  q.options.forEach(opt => {
+    const chip = document.createElement('div');
+    chip.className = 'label-chip';
+    chip.textContent = opt;
+    chip.onclick = () => selectChip(opt, chip, q, body);
+    chips.appendChild(chip);
+  });
+  body.appendChild(chips);
+}
+
+function selectChip(val, chip, q, body) {
+  // Toggle selection
+  document.querySelectorAll('.label-chip').forEach(c => c.classList.remove('selected'));
+  if (labelState.selected === val) {
+    labelState.selected = null;
+    return;
+  }
+  labelState.selected = val;
+  chip.classList.add('selected');
+}
+
+function clickLabel(id, q, body) {
+  if (!labelState.selected) return;
+  const target = document.getElementById(`lt-${id}`);
+  const label = q.labels.find(l => l.id === id);
+  const answer = labelState.selected;
+
+  target.textContent = id;
+  target.classList.add('filled');
+  labelState.answers[id] = answer;
+
+  // Mark chip used
+  document.querySelectorAll('.label-chip').forEach(c => {
+    if (c.textContent === answer) c.classList.add('used');
+  });
+  labelState.selected = null;
+  document.querySelectorAll('.label-chip').forEach(c => c.classList.remove('selected'));
+
+  // Check if all filled
+  if (Object.keys(labelState.answers).length === q.labels.length) {
+    let correct = true;
+    q.labels.forEach(l => {
+      if (labelState.answers[l.id] !== l.answer) {
+        correct = false;
+        const t = document.getElementById(`lt-${l.id}`);
+        t.classList.remove('filled');
+        t.classList.add('wrong-fill');
+      }
+    });
+    handleAnswer(correct, q);
+  }
+}
+
+function drawLeafSVG(labels) {
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', '0 0 400 200');
+  svg.setAttribute('class', 'label-svg');
+  svg.style.width = '100%';
+
+  // Background
+  const bg = document.createElementNS(ns, 'rect');
+  bg.setAttribute('width', '400'); bg.setAttribute('height', '200');
+  bg.setAttribute('fill', '#0d160d'); svg.appendChild(bg);
+
+  // Cuticula
+  const cut = document.createElementNS(ns, 'rect');
+  cut.setAttribute('x','20'); cut.setAttribute('y','8');
+  cut.setAttribute('width','360'); cut.setAttribute('height','8');
+  cut.setAttribute('rx','3'); cut.setAttribute('fill','#a16207');
+  svg.appendChild(cut);
+  const cutL = document.createElementNS(ns, 'text');
+  cutL.setAttribute('x','200'); cutL.setAttribute('y','15');
+  cutL.setAttribute('text-anchor','middle'); cutL.setAttribute('font-size','7');
+  cutL.setAttribute('fill','#fbbf24'); cutL.textContent = 'Cuticula';
+  svg.appendChild(cutL);
+
+  // Epidermis top
+  const ep1 = document.createElementNS(ns, 'rect');
+  ep1.setAttribute('x','20'); ep1.setAttribute('y','20');
+  ep1.setAttribute('width','360'); ep1.setAttribute('height','14');
+  ep1.setAttribute('rx','2'); ep1.setAttribute('fill','#1a3a1a');
+  svg.appendChild(ep1);
+  addLabel(svg, ns, '200', '29', 'Epidermis (bov.)');
+
+  // Pallisade
+  for (let i = 0; i < 9; i++) {
+    const r = document.createElementNS(ns, 'rect');
+    r.setAttribute('x', (25 + i * 38).toString()); r.setAttribute('y','38');
+    r.setAttribute('width','30'); r.setAttribute('height','35');
+    r.setAttribute('rx','3'); r.setAttribute('fill','#14532d');
+    r.setAttribute('stroke','#22c55e33'); r.setAttribute('stroke-width','0.5');
+    svg.appendChild(r);
+    const c = document.createElementNS(ns, 'circle');
+    c.setAttribute('cx', (40 + i * 38).toString()); c.setAttribute('cy','55');
+    c.setAttribute('r','6'); c.setAttribute('fill','#16a34a');
+    svg.appendChild(c);
+  }
+  addLabel(svg, ns, '200', '50', 'Pallisadeparenchym');
+
+  // Sponge
+  const spongeColors = ['#166534','#14532d','#15803d','#166534'];
+  for (let i = 0; i < 12; i++) {
+    const e = document.createElementNS(ns, 'ellipse');
+    const cx = 30 + (i % 6) * 60 + (Math.floor(i/6) * 30);
+    const cy = 100 + (Math.floor(i/6) * 18);
+    e.setAttribute('cx', cx.toString()); e.setAttribute('cy', cy.toString());
+    e.setAttribute('rx','18'); e.setAttribute('ry','9');
+    e.setAttribute('fill', spongeColors[i % 4]);
+    svg.appendChild(e);
+  }
+  addLabel(svg, ns, '200', '108', 'Sponsparenchym');
+
+  // Vaatbundel
+  const vb = document.createElementNS(ns, 'rect');
+  vb.setAttribute('x','60'); vb.setAttribute('y','75');
+  vb.setAttribute('width','55'); vb.setAttribute('height','50');
+  vb.setAttribute('rx','5'); vb.setAttribute('fill','#1e3a5f');
+  vb.setAttribute('stroke','#60a5fa44'); vb.setAttribute('stroke-width','1');
+  svg.appendChild(vb);
+  // xyleem inside bundle
+  const xy = document.createElementNS(ns, 'rect');
+  xy.setAttribute('x','68'); xy.setAttribute('y','78');
+  xy.setAttribute('width','20'); xy.setAttribute('height','20');
+  xy.setAttribute('rx','3'); xy.setAttribute('fill','#3b82f6');
+  svg.appendChild(xy);
+  const xyL = document.createElementNS(ns, 'text');
+  xyL.setAttribute('x','78'); xyL.setAttribute('y','91');
+  xyL.setAttribute('text-anchor','middle'); xyL.setAttribute('font-size','5.5');
+  xyL.setAttribute('fill','#bfdbfe'); xyL.textContent = 'X';
+  svg.appendChild(xyL);
+  // floem inside bundle
+  const fl = document.createElementNS(ns, 'rect');
+  fl.setAttribute('x','90'); fl.setAttribute('y','98');
+  fl.setAttribute('width','18'); fl.setAttribute('height','20');
+  fl.setAttribute('rx','3'); fl.setAttribute('fill','#7c3aed');
+  svg.appendChild(fl);
+  const flL = document.createElementNS(ns, 'text');
+  flL.setAttribute('x','99'); flL.setAttribute('y','111');
+  flL.setAttribute('text-anchor','middle'); flL.setAttribute('font-size','5.5');
+  flL.setAttribute('fill','#ddd6fe'); flL.textContent = 'F';
+  svg.appendChild(flL);
+  addLabel(svg, ns, '87', '135', 'Vaatbundel');
+
+  // Epidermis bottom
+  const ep2 = document.createElementNS(ns, 'rect');
+  ep2.setAttribute('x','20'); ep2.setAttribute('y','130');
+  ep2.setAttribute('width','360'); ep2.setAttribute('height','14');
+  ep2.setAttribute('rx','2'); ep2.setAttribute('fill','#1a3a1a');
+  svg.appendChild(ep2);
+  addLabel(svg, ns, '200', '140', 'Epidermis (ond.)');
+
+  // Stomata
+  const stL = document.createElementNS(ns, 'ellipse');
+  stL.setAttribute('cx','280'); stL.setAttribute('cy','150');
+  stL.setAttribute('rx','12'); stL.setAttribute('ry','6');
+  stL.setAttribute('fill','#0a0f0a'); stL.setAttribute('stroke','#4ade80');
+  stL.setAttribute('stroke-width','1.5');
+  svg.appendChild(stL);
+  const sc1 = document.createElementNS(ns, 'ellipse');
+  sc1.setAttribute('cx','274'); sc1.setAttribute('cy','150');
+  sc1.setAttribute('rx','6'); sc1.setAttribute('ry','5');
+  sc1.setAttribute('fill','#14532d');
+  svg.appendChild(sc1);
+  const sc2 = document.createElementNS(ns, 'ellipse');
+  sc2.setAttribute('cx','286'); sc2.setAttribute('cy','150');
+  sc2.setAttribute('rx','6'); sc2.setAttribute('ry','5');
+  sc2.setAttribute('fill','#14532d');
+  svg.appendChild(sc2);
+  addLabel(svg, ns, '290', '162', 'Huidmondje');
+
+  // Numbered hotspots
+  labels.forEach(l => {
+    const posX = (l.x / 100) * 400;
+    const posY = (l.y / 100) * 200;
+
+    // Line
+    const line = document.createElementNS(ns, 'line');
+    const offX = posX > 200 ? posX + 18 : posX - 18;
+    line.setAttribute('x1', posX.toString()); line.setAttribute('y1', posY.toString());
+    line.setAttribute('x2', offX.toString()); line.setAttribute('y2', posY.toString());
+    line.setAttribute('stroke','#4ade8088'); line.setAttribute('stroke-width','0.8');
+    svg.appendChild(line);
+
+    const fo = document.createElementNS(ns, 'foreignObject');
+    fo.setAttribute('x', (posX - 14).toString());
+    fo.setAttribute('y', (posY - 14).toString());
+    fo.setAttribute('width','28'); fo.setAttribute('height','28');
+    fo.style.cursor = 'pointer';
+
+    const div = document.createElement('div');
+    div.id = `lt-${l.id}`;
+    div.className = 'label-target';
+    div.textContent = l.id;
+    div.onclick = () => clickLabel(l.id, { labels }, document.getElementById('question-body'));
+
+    fo.appendChild(div);
+    svg.appendChild(fo);
+  });
+
+  return svg;
+}
+
+function addLabel(svg, ns, x, y, text) {
+  const t = document.createElementNS(ns, 'text');
+  t.setAttribute('x', x); t.setAttribute('y', y);
+  t.setAttribute('text-anchor','middle'); t.setAttribute('font-size','6.5');
+  t.setAttribute('fill','#4a6a4a'); t.setAttribute('font-family','Space Mono');
+  t.textContent = text;
+  svg.appendChild(t);
+}
+
+// ═══════════════════════════════════════════════════════
+// ANSWER HANDLING
+// ═══════════════════════════════════════════════════════
+
+function handleAnswer(correct, q) {
+  const xpGain = correct ? (q.type === 'drag' || q.type === 'label' ? 20 : 10) + (state.streak >= 3 ? 5 : 0) : 0;
+
+  if (correct) {
+    state.streak++;
+    state.sessionCorrect++;
+    state.sessionXP += xpGain;
+    state.xp += xpGain;
+    state.dots[state.currentIdx] = 'correct';
+    confetti();
+  } else {
+    state.streak = 0;
+    state.sessionWrong++;
+    state.dots[state.currentIdx] = 'wrong';
+    state.wrongQuestions.push(q);
+  }
+
+  document.getElementById('quiz-streak').textContent = `🔥 ${state.streak}`;
+  renderDots();
+  showFeedback(correct, q, xpGain);
+}
+
+function showFeedback(correct, q, xp) {
+  const box = document.getElementById('feedback-box');
+  const title = document.getElementById('feedback-title');
+  const text = document.getElementById('feedback-text');
+
+  box.className = `feedback-box ${correct ? 'correct' : 'wrong'}`;
+  box.style.display = 'block';
+
+  const corrects = ['Uitstekend!', 'Perfect! 🎯', 'Correct! 🌿', 'Bravo!', 'Precies goed!'];
+  const wrongs = ['Niet helemaal...', 'Bijna!', 'Goed geprobeerd.', 'Nog even oefenen.'];
+
+  title.textContent = correct
+    ? (state.streak >= 3 ? `🔥 ${state.streak}× streak! +${xp} XP` : corrects[Math.floor(Math.random() * corrects.length)])
+    : wrongs[Math.floor(Math.random() * wrongs.length)];
+
+  text.innerHTML = q.feedback || '';
+  if (q.fromDB) {
+    text.innerHTML += '<br><br><em style="font-size:12px; color:var(--purple)">⚗ Deze uitleg is aangevuld vanuit de kennisbasis (niet uit info.txt)</em>';
+  }
+
+  box.classList.add('pop');
+  box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function nextQuestion() {
+  state.currentIdx++;
+  if (state.currentIdx >= state.currentQuestions.length) {
+    showResults();
+  } else {
+    renderQuestion();
+    document.getElementById('feedback-box').style.display = 'none';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// RESULTS
+// ═══════════════════════════════════════════════════════
+
+function showResults() {
+  const total = state.currentQuestions.length;
+  const pct = total ? Math.round((state.sessionCorrect / total) * 100) : 0;
+
+  document.getElementById('results-score').textContent = pct + '%';
+  document.getElementById('results-module-name').textContent = state.currentModule.title + ' — voltooid';
+  document.getElementById('res-correct').textContent = state.sessionCorrect;
+  document.getElementById('res-wrong').textContent = state.sessionWrong;
+  document.getElementById('res-xp').textContent = '+' + state.sessionXP;
+
+  // Stars
+  const stars = pct >= 90 ? 3 : pct >= 70 ? 2 : pct >= 50 ? 1 : 0;
+  const prog = state.moduleProgress[state.currentModule.id] || { done: 0, total: total, stars: 0 };
+  prog.done = state.sessionCorrect;
+  prog.stars = Math.max(prog.stars, stars);
+  state.moduleProgress[state.currentModule.id] = prog;
+
+  const weakEl = document.getElementById('weak-areas');
+  if (state.wrongQuestions.length > 0) {
+    weakEl.innerHTML = state.wrongQuestions.map(q =>
+      `<div style="padding:6px 0; border-bottom:1px solid var(--border);">→ ${q.q.substring(0, 80)}${q.q.length > 80 ? '...' : ''}</div>`
+    ).join('');
+  } else {
+    weakEl.innerHTML = '<div style="color:var(--green)">🎉 Geen fouten! Uitstekend beheerst!</div>';
+  }
+
+  if (pct >= 80) confetti(40);
+
+  showScreen('results');
+}
+
+// ═══════════════════════════════════════════════════════
+// UI HELPERS
+// ═══════════════════════════════════════════════════════
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if (id === 'home') renderHome();
+  window.scrollTo(0, 0);
+}
+
+function goHome() {
+  showScreen('home');
+}
+
+function renderDots() {
+  const container = document.getElementById('progress-dots');
+  container.innerHTML = '';
+  state.dots.forEach((d, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'dot';
+    if (i === state.currentIdx) dot.classList.add('current');
+    else if (d === 'correct') dot.classList.add('correct');
+    else if (d === 'wrong') dot.classList.add('wrong');
+    container.appendChild(dot);
+  });
+}
+
+function confetti(count = 20) {
+  const colors = ['#4ade80', '#fbbf24', '#60a5fa', '#c084fc', '#f87171', '#86efac'];
+  for (let i = 0; i < count; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    piece.style.left = (20 + Math.random() * 60) + 'vw';
+    piece.style.top = '-20px';
+    piece.style.background = colors[Math.floor(Math.random() * colors.length)];
+    piece.style.setProperty('--dur', (1 + Math.random()) + 's');
+    piece.style.setProperty('--delay', (Math.random() * 0.5) + 's');
+    piece.style.width = (6 + Math.random() * 8) + 'px';
+    piece.style.height = (6 + Math.random() * 8) + 'px';
+    document.body.appendChild(piece);
+    setTimeout(() => piece.remove(), 2500);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+
+renderHome();
+showScreen('home');
+</script>
+</body>
+</html>
